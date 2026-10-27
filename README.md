@@ -17,11 +17,12 @@ npm install
 npx playwright install chromium
 ```
 
-2. Подключить плагин к профилю DSH — в `~/.dsh/profiles/desktop/package.json`:
+2. Подключить плагин к профилю DSH — в `~/.dsh/profiles/desktop/package.json`
+   (на Windows путь в `link:` выглядит как `C:\\path\\to\\hsb-browser`):
 
 ```json
 {
-  "dependencies": { "@local/browser": "link:C:\\path\\to\\hsb-browser" },
+  "dependencies": { "@local/browser": "link:/absolute/path/to/hsb-browser" },
   "dsh": { "profile": { "bundles": ["…", "@local/browser"] } }
 }
 ```
@@ -43,8 +44,9 @@ npx playwright install chromium
 - **Прокси по сайту.** Встроенный маршрутизирующий прокси на `127.0.0.1:49222`: он смотрит хост
   каждого соединения и направляет в Hiddify только сайты из списка, остальное — напрямую.
   Chromium 156 игнорирует PAC (и `--proxy-pac-url`, и `chrome.proxy` из расширения), поэтому
-  решение принимается вне браузера. Список сайтов сохраняется между перезапусками
-  (`%LOCALAPPDATA%\dsh-browser\proxy-state.json`).
+  решение принимается вне браузера. Список сайтов и адрес прокси сохраняются между перезапусками
+  в каталоге данных: `%LOCALAPPDATA%\dsh-browser` (Windows), `~/.local/share/dsh-browser` (Linux),
+  `~/Library/Application Support/dsh-browser` (macOS).
 - **Отладка.** Сеть, консоль, куки, storage, IndexedDB, покрытие, снимок доступности, Lighthouse.
 
 ## Инструменты
@@ -116,6 +118,18 @@ npx playwright install chromium
       on: [open, navigate, click, resize, drag]
       quality: 55
       minIntervalMs: 1500
+```
+
+## Платформы
+
+Плагин не содержит платформенных вызовов: Chromium ищется по путям Playwright для Windows, Linux и macOS
+(или задаётся `DSH_BROWSER_EXE`), сторож процессов говорит с браузером по CDP, а не через `taskkill`
+или `kill`, пути собираются через `node:path`.
+
+```
+Windows   %LOCALAPPDATA%\ms-playwright\chromium-*/chrome-win64/chrome.exe
+Linux     ~/.cache/ms-playwright/chromium-*/chrome-linux/chrome
+macOS     ~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium
 ```
 
 ## Архитектура

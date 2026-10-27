@@ -27,12 +27,14 @@ export function findChromium() {
     join(home, 'Library', 'Caches', 'ms-playwright'),
   ].filter(Boolean);
   // Playwright's bundle layout differs per platform; try every known shape.
+  // Forward slashes: path.join normalizes them on every platform, while a
+  // backslash would be a literal character on Linux and macOS.
   const rels = [
-    'chrome-win64\\chrome.exe',
-    'chrome-win\\chrome.exe',
-    'chrome-linux\\chrome',
-    'chrome-mac\\Chromium.app\\Contents\\MacOS\\Chromium',
-    'chrome-mac-arm64\\Chromium.app\\Contents\\MacOS\\Chromium',
+    'chrome-win64/chrome.exe',
+    'chrome-win/chrome.exe',
+    'chrome-linux/chrome',
+    'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
+    'chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium',
   ];
   for (const root of roots) {
     if (!existsSync(root)) continue;

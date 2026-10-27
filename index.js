@@ -1,6 +1,7 @@
 import z from '@deepseek-ai/schemastery';
 import { appendFileSync, cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { BrowserManager } from './src/browser-manager.js';
@@ -20,7 +21,14 @@ import { runCommand, COMMANDS } from './src/commands.js';
  * The dock card shows the browser of the first agent that used it (the Session's
  * primary agent); subagent browsers are invisible there on purpose.
  */
-const LOG_DIR = join(process.env.LOCALAPPDATA ?? process.env.TEMP ?? '.', 'dsh-browser');
+// Data directory per platform: %LOCALAPPDATA% on Windows, XDG on Linux,
+// Application Support on macOS.
+const DATA_HOME =
+  process.env.LOCALAPPDATA ??
+  (process.platform === 'darwin'
+    ? join(homedir(), 'Library', 'Application Support')
+    : process.env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'));
+const LOG_DIR = join(DATA_HOME, 'dsh-browser');
 const LOG_FILE = join(LOG_DIR, 'apply.log');
 
 function log(line) {
