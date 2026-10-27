@@ -1,6 +1,6 @@
 - insert:
     - id: browser
-      name: '@local/browser'
+      name: 'hsb-browser'
       config:
         headless: true
         bridgePort: 49221

@@ -36,8 +36,8 @@ npx playwright install chromium
 
 ```json
 {
-  "dependencies": { "@local/browser": "github:machine202502/hsb-browser" },
-  "dsh": { "profile": { "bundles": ["…", "@local/browser"] } }
+  "dependencies": { "hsb-browser": "github:machine202502/hsb-browser" },
+  "dsh": { "profile": { "bundles": ["…", "hsb-browser"] } }
 }
 ```
 
@@ -117,7 +117,7 @@ npx playwright install chromium
 
 ```yaml
 - id: browser
-  name: '@local/browser'
+  name: 'hsb-browser'
   config:
     headless: true
     bridgePort: 49221

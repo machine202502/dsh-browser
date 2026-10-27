@@ -14,7 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const PACKAGE = '@local/browser';
+const PACKAGE = 'hsb-browser';
 const SPEC = 'github:machine202502/hsb-browser';
 
 const argv = process.argv.slice(2);
