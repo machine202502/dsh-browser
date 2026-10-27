@@ -26,7 +26,9 @@
   "files": [
     "index.js",
     "client.js",
+    "install.mjs",
     "src/*.js",
+    "src/*.mjs",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -51,5 +53,8 @@
         "@deepseek-ai/dsh-client-ui-conversation"
       ]
     }
+  },
+  "bin": {
+    "hsb-browser": "./install.mjs"
   }
 }

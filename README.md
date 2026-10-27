@@ -10,26 +10,38 @@ a **Browser** section in the sidebar, a per-site proxy and DevTools-grade toolin
 
 ## Установка
 
-1. Зависимости (Chromium ставится отдельно, `playwright-core` его не тянет):
+Одной командой — она прописывает зависимость из GitHub и запускает пакетный менеджер:
 
 ```bash
-npm install
+npx --yes github:machine202502/hsb-browser
+```
+
+Дальше перезапустить DSH: в сайдбаре появится раздел **Browser**, в доке — карточка браузера.
+
+Полезные варианты:
+
+```bash
+node install.mjs --profile desktop --dry-run   # показать, что будет изменено
+node install.mjs --home /path/to/.dsh          # другой каталог DSH
+node install.mjs --uninstall                   # убрать плагин
+```
+
+Chromium ставится отдельно, `playwright-core` его не тянет:
+
+```bash
 npx playwright install chromium
 ```
 
-2. Подключить плагин к профилю DSH — в `~/.dsh/profiles/desktop/package.json`
-   (на Windows путь в `link:` выглядит как `C:\\path\\to\\hsb-browser`):
+Ручная установка (если pnpm недоступен) — в `~/.dsh/profiles/desktop/package.json`:
 
 ```json
 {
-  "dependencies": { "@local/browser": "link:/absolute/path/to/hsb-browser" },
+  "dependencies": { "@local/browser": "github:machine202502/hsb-browser" },
   "dsh": { "profile": { "bundles": ["…", "@local/browser"] } }
 }
 ```
 
-3. Перезапустить DSH: в сайдбаре появится раздел **Browser**, в доке — карточка браузера.
-
-4. Проверка: `npm test` (нужна страница `node tests/qa-page.mjs`).
+Проверка: `npm test` в каталоге плагина (нужна страница `node tests/qa-page.mjs`).
 
 ## Что даёт
 
