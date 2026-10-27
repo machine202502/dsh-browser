@@ -1,0 +1,17 @@
+- insert:
+    - id: browser
+      name: '@local/browser'
+      config:
+        headless: true
+        bridgePort: 49221
+        idleTimeoutMs: 900000
+        viewport:
+          width: 1280
+          height: 800
+        proxy:
+          server: 127.0.0.1:10901
+        shots:
+          enabled: true
+          on: [open, navigate, click, resize, drag]
+          quality: 55
+          minIntervalMs: 1500

@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+package-lock.json
+
+# local test artifacts
+.npmcache/
+probe.mjs
+probe-*.mjs
+smoke-*.mjs
+*.log
+tests/*.tmp
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# local settings and secrets
+.env
+.env.*
+*.pem
+proxy-state.json
+settings.json

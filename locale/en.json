@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "title": "Browser",
+    "description": "Isolated Playwright browser per session: live tab thumbnails, sidebar section, screenshots in chat, proxy per site and full DevTools access."
+  },
+  "settings": {
+    "summary": "Isolated Playwright browser per session",
+    "saved": "Saved — applies to newly opened browsers",
+    "save": "Save",
+    "saving": "Saving…",
+    "loading": "Loading…",
+    "unavailable": "Settings service is unavailable",
+    "viewportHint": "Default window size for new tabs",
+    "qualityHint": "JPEG quality, 10–100"
+  }
+}
