@@ -824,11 +824,33 @@ function activate(ctx, config) {
       args: { type: 'object', description: 'Command arguments; see help <command>.' },
     }, ['command']),
     output: {
-      schema: obj({ text: { type: 'string' } }, ['text']),
-      render: (_a, v) => [{ type: 'text', text: v.text }],
+      schema: obj({ text: { type: 'string' }, shot: { type: 'string' } }, ['text']),
+      render: (_a, v) => {
+        const blocks = [{ type: 'text', text: v.text }];
+        if (v && typeof v === 'object' && v.shot) {
+          blocks.push({ type: 'text', text: `[shot:${v.shot}]${v.caption ?? 'Screenshot'}` });
+        }
+        return blocks;
+      },
     },
     isConcurrencySafe: () => false,
-    execute: withBrowser(async (m, args) => ({ text: String(await runCommand(m, args.command, args.args ?? {})) })),
+    execute: withBrowser(async (m, args) => {
+      const text = String(await runCommand(m, args.command, args.args ?? {}));
+      // A screenshot command writes a file: keep it as a chat frame too, the same
+      // way click and open already show their shot.
+      if (args.command === 'screenshot') {
+        try {
+          const data = JSON.parse(text);
+          if (data && typeof data.path === 'string') {
+            const shot = keepFrame(readFileSync(data.path));
+            return { text, shot, caption: data.url ? `Screenshot ${data.url}` : 'Screenshot' };
+          }
+        } catch {
+          // Keep the text result when the command did not return a JSON path.
+        }
+      }
+      return { text };
+    }),
   });
 
   tool({

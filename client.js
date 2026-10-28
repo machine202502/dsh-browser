@@ -462,6 +462,7 @@ const CSS = `
         browser_click: 'Browser click',
         browser_resize: 'Browser resize',
         browser_drag: 'Browser drag',
+        browser_run: 'Browser run',
       };
       const title = TITLES[name] ?? 'Tool call';
       const looksLikeCode = (value) => /[{}]|=>|function\s*\(/.test(value);
@@ -967,7 +968,7 @@ const CSS = `
 
         // Pilot: a dedicated view for browser_click rows.
         try {
-          for (const key of ['browser_open', 'browser_navigate', 'browser_click', 'browser_resize', 'browser_drag']) {
+          for (const key of ['browser_open', 'browser_navigate', 'browser_click', 'browser_resize', 'browser_drag', 'browser_run']) {
             ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
               name: 'tool.call.toolview',
               key,
