@@ -824,7 +824,7 @@ function activate(ctx, config) {
       args: { type: 'object', description: 'Command arguments; see help <command>.' },
     }, ['command']),
     output: {
-      schema: obj({ text: { type: 'string' }, shot: { type: 'string' } }, ['text']),
+      schema: obj({ text: { type: 'string' }, shot: { type: 'string' }, caption: { type: 'string' } }, ['text']),
       render: (_a, v) => {
         const blocks = [{ type: 'text', text: v.text }];
         if (v && typeof v === 'object' && v.shot) {
