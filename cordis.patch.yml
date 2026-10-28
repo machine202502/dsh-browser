@@ -1,6 +1,6 @@
 - insert:
     - id: browser
-      name: 'hsb-browser'
+      name: 'dsh-browser'
       config:
         headless: true
         bridgePort: 49221

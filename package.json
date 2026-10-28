@@ -1,5 +1,5 @@
 {
-  "name": "hsb-browser",
+  "name": "dsh-browser",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -8,11 +8,11 @@
   "author": "machine202502",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/machine202502/hsb-browser.git"
+    "url": "git+https://github.com/machine202502/dsh-browser.git"
   },
-  "homepage": "https://github.com/machine202502/hsb-browser#readme",
+  "homepage": "https://github.com/machine202502/dsh-browser#readme",
   "bugs": {
-    "url": "https://github.com/machine202502/hsb-browser/issues"
+    "url": "https://github.com/machine202502/dsh-browser/issues"
   },
   "engines": {
     "node": ">=20"
@@ -55,6 +55,6 @@
     }
   },
   "bin": {
-    "hsb-browser": "./install.mjs"
+    "dsh-browser": "./install.mjs"
   }
 }

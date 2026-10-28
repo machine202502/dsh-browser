@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: 'hsb-browser',
+  id: 'dsh-browser',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
@@ -915,7 +915,7 @@ const CSS = `
     try {
       ctx.slots.inject('plugins.row.config', () => ctx.slots.register({
         name: 'plugins.row.config',
-        key: 'hsb-browser#browser',
+        key: 'dsh-browser#browser',
         locale: 'browser',
       }, ({ t, view }) => (view === 'summary'
         ? (t ? t('settings.summary') : 'Isolated Playwright browser')

@@ -1,4 +1,4 @@
-# hsb-browser
+# dsh-browser
 
 DSH plugin: an isolated Playwright browser per session — live tab thumbnails in the composer dock,
 a **Browser** section in the sidebar, a per-site proxy and DevTools-grade tooling for agents.
@@ -13,7 +13,7 @@ a **Browser** section in the sidebar, a per-site proxy and DevTools-grade toolin
 Одной командой — она прописывает зависимость из GitHub и запускает пакетный менеджер:
 
 ```bash
-npx --yes github:machine202502/hsb-browser
+npx --yes github:machine202502/dsh-browser
 ```
 
 Дальше перезапустить DSH: в сайдбаре появится раздел **Browser**, в доке — карточка браузера.
@@ -36,8 +36,8 @@ npx playwright install chromium
 
 ```json
 {
-  "dependencies": { "hsb-browser": "github:machine202502/hsb-browser" },
-  "dsh": { "profile": { "bundles": ["…", "hsb-browser"] } }
+  "dependencies": { "dsh-browser": "github:machine202502/dsh-browser" },
+  "dsh": { "profile": { "bundles": ["…", "dsh-browser"] } }
 }
 ```
 
@@ -117,7 +117,7 @@ npx playwright install chromium
 
 ```yaml
 - id: browser
-  name: 'hsb-browser'
+  name: 'dsh-browser'
   config:
     headless: true
     bridgePort: 49221
