@@ -2,7 +2,8 @@
 
 DSH plugin: an isolated Playwright browser per session — live tab thumbnails in the composer dock,
 a **Browser** section in the sidebar, a per-site proxy and DevTools-grade tooling for agents.
-16 tools, 27 `browser_run` commands, a settings form, and a regression suite.
+16 tools, 33 `browser_run` commands (including `list`/`help` and the network presets), a settings
+form, and a regression suite.
 
 Изолированный браузер для каждой сессии DSH: настоящий Chromium (Playwright), живые миниатюры в доке,
 раздел **Browser** в сайдбаре, прокси на уровне сайта и полный доступ к DevTools.
@@ -98,6 +99,8 @@ npx playwright install chromium
 | `dialog` | `accept` / `dismiss` / текст для `prompt` |
 | `emulate` | сеть, цветовая схема, CPU, часовой пояс, геолокация |
 | `metrics` | метрики производительности страницы |
+| `perf` | запись главного потока на N секунд: где ушло время |
+| `slow3g` / `fast3g` / `offline` / `off` | пресеты сети одним словом |
 | `trace` | запись Playwright-трейса |
 | `coverage` | покрытие JS между start и stop |
 | `downloads` | файлы, скачанные браузером |
