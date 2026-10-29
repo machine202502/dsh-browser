@@ -927,7 +927,7 @@ const CSS = `
     ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
           name: 'conversation.input.dock',
           id: 'browser-panel',
-          order: 30,
+          order: 15,
           locale: 'browser-panel',
           inject: (sessionId, t) => ({
             sessionId,
