@@ -7,7 +7,10 @@ import { join } from 'node:path';
  * The profile patch stays the deployment default; this file holds what the
  * settings form saves, so a form write never has to edit YAML by hand.
  */
+export const LANGUAGES = ['ru', 'en', 'zh', 'auto'];
+
 const KEYS = {
+  language: 'language',
   headless: 'boolean',
   bridgePort: 'number',
   idleTimeoutMs: 'number',
@@ -56,9 +59,14 @@ const sanitizeShots = (value) => {
 
 /** Keep only known keys with sane values; unknown input is dropped. */
 export function sanitizeSettings(input = {}) {
+  input = input ?? {};
   const out = {};
   for (const [key, kind] of Object.entries(KEYS)) {
     if (input[key] === undefined) continue;
+    if (kind === 'language') {
+      if (LANGUAGES.includes(input[key])) out[key] = input[key];
+      continue;
+    }
     if (kind === 'boolean' && typeof input[key] === 'boolean') out[key] = input[key];
     if (kind === 'number') {
       const value = Number(input[key]);

@@ -56,5 +56,6 @@
   },
   "bin": {
     "dsh-browser": "./install.mjs"
-  }
+  },
+  "icon": "./icon.svg"
 }

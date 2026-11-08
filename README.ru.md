@@ -1,0 +1,194 @@
+# dsh-browser
+
+Плагин DSH: изолированный браузер Playwright для каждой сессии — живые миниатюры вкладок в доке
+композера, раздел **Browser** в сайдбаре, прокси на уровне сайта и инструменты уровня DevTools для агентов.
+16 инструментов, 33 команды `browser_run` (включая `list`/`help` и сетевые пресеты), форма настроек
+и регрессионный набор тестов.
+
+Настоящий Chromium (Playwright) для каждой сессии DSH: живые миниатюры в доке, раздел **Browser**
+в сайдбаре, прокси на уровне сайта и полный доступ к DevTools.
+
+## Скриншоты
+
+![Раздел Browser](docs/img/page.jpg)
+
+![Настройки плагина](docs/img/settings.jpg)
+
+## Установка
+
+Одной командой — она прописывает зависимость из GitHub и запускает пакетный менеджер:
+
+```bash
+npx --yes github:machine202502/dsh-browser
+```
+
+Дальше перезапустить DSH: в сайдбаре появится раздел **Browser**, в доке — карточка браузера.
+
+Полезные варианты:
+
+```bash
+node install.mjs --profile desktop --dry-run   # показать, что будет изменено
+node install.mjs --home /path/to/.dsh          # другой каталог DSH
+node install.mjs --uninstall                   # убрать плагин
+```
+
+Chromium ставится отдельно, `playwright-core` его не тянет:
+
+```bash
+npx playwright install chromium
+```
+
+Ручная установка (если pnpm недоступен) — в `~/.dsh/profiles/desktop/package.json`:
+
+```json
+{
+  "dependencies": { "dsh-browser": "github:machine202502/dsh-browser" },
+  "dsh": { "profile": { "bundles": ["…", "dsh-browser"] } }
+}
+```
+
+Проверка: `npm test` в каталоге плагина (нужна страница `node tests/qa-page.mjs`).
+
+## Что даёт
+
+- **Свой браузер на агента.** Отдельный процесс, отдельный временный профиль, свои вкладки.
+  Подагент получает собственный браузер и не видит чужие.
+- **Контексты.** `ctx1`, `ctx2`, … — изолированные куки и storage внутри одного браузера,
+  чтобы тестировать двух клиентов на одном сервере.
+- **Живые кадры.** Карточка в доке показывает миниатюры вкладок и виртуальный указатель;
+  после действий (`open`, `navigate`, `click`, `resize`, `drag`) в ленту чата попадает кадр.
+- **Раздел Browser в сайдбаре.** Список открытых браузеров, сгруппированный по сессиям:
+  имя сессии, число вкладок, переход в сессию, закрытие отдельного браузера.
+- **Прокси по сайту.** Встроенный маршрутизирующий прокси на `127.0.0.1:49222`: он смотрит хост
+  каждого соединения и направляет в Hiddify только сайты из списка, остальное — напрямую.
+  Chromium 156 игнорирует PAC (и `--proxy-pac-url`, и `chrome.proxy` из расширения), поэтому
+  решение принимается вне браузера. Список сайтов и адрес прокси сохраняются между перезапусками
+  в каталоге данных: `%LOCALAPPDATA%\dsh-browser` (Windows), `~/.local/share/dsh-browser` (Linux),
+  `~/Library/Application Support/dsh-browser` (macOS).
+- **Отладка.** Сеть, консоль, куки, storage, IndexedDB, покрытие, снимок доступности, Lighthouse.
+
+## Инструменты
+
+| Инструмент | Назначение |
+|---|---|
+| `browser_open` | открыть вкладку (можно в конкретном `ctx`) |
+| `browser_navigate` | перейти по адресу |
+| `browser_click` | клик по CSS-селектору (не блокируется диалогом) |
+| `browser_fill` | заполнить поле |
+| `browser_hover` / `browser_drag` | указатель и перетаскивание (в пределах вьюпорта) |
+| `browser_resize` | размер вьюпорта |
+| `browser_text` | текст страницы |
+| `browser_tabs` | список вкладок |
+| `browser_close` | закрыть вкладку (последняя гасит браузер) |
+| `browser_cdp` | сырой вызов Chrome DevTools Protocol |
+| `browser_run` | диспетчер команд (см. ниже) |
+| `browser_proxy_enable` / `browser_proxy_disable` / `browser_proxy_status` / `browser_proxy_list` | прокси |
+
+Все инструменты принимают `timeout` (мс). По умолчанию 10–45 с в зависимости от операции.
+
+## Команды `browser_run`
+
+`browser_run({ command: "list" })` — каталог; `{ command: "help", args: { name: "network" } }` — детали.
+
+| Команда | Что делает |
+|---|---|
+| `console` | `console.*` и ошибки страницы, включая асинхронные |
+| `network` | запросы с кодами, типами и ошибками |
+| `cookies` | get / set / clear |
+| `storage` | `localStorage` / `sessionStorage` |
+| `idb` | IndexedDB: базы, хранилища, строки |
+| `eval` | выполнить JS, вернуть значение |
+| `dom` | html / text / attrs / styles / count элемента |
+| `snapshot` | дерево доступности (роль и имя) |
+| `keyboard` | `press`, `type`, `down`, `up` |
+| `dialog` | `accept` / `dismiss` / текст для `prompt` |
+| `emulate` | сеть, цветовая схема, CPU, часовой пояс, геолокация |
+| `metrics` | метрики производительности страницы |
+| `perf` | запись главного потока на N секунд: где ушло время |
+| `slow3g` / `fast3g` / `offline` / `off` | пресеты сети одним словом |
+| `trace` | запись Playwright-трейса |
+| `coverage` | покрытие JS между start и stop |
+| `downloads` | файлы, скачанные браузером |
+| `lighthouse` | аудит: оценки, метрики, проваленные проверки |
+| `report` | разбор сохранённого отчёта: список или один аудит |
+| `css` | сработавшие правила для элемента: селекторы, свойства, медиазапросы, шрифты |
+| `assets` | ресурсы страницы по типам, `download: true` — сохранить на диск |
+| `html` | полный HTML документа в файл |
+| `screenshot` | снимок страницы или элемента в файл (открывается `read_image`) |
+| `diff` | пиксельное сравнение двух скриншотов |
+| `ws` | WebSocket-соединения и кадры в обе стороны |
+| `wait` | ждать селектор или текст |
+| `ctx` | вкладки по контекстам |
+| `cdp` | произвольный метод протокола |
+
+## Конфигурация
+
+```yaml
+- id: browser
+  name: 'dsh-browser'
+  config:
+    language: ru
+    headless: true
+    bridgePort: 49221
+    idleTimeoutMs: 900000
+    viewport: { width: 1280, height: 800 }
+    proxy:
+      server: 127.0.0.1:10901
+    shots:
+      enabled: true
+      on: [open, navigate, click, resize, drag]
+      quality: 55
+      minIntervalMs: 1500
+```
+
+## Языки
+
+Языки интерфейса: **русский**, **английский**, **китайский**.
+
+Настройка `language` используется, когда в ней `ru` / `en` / `zh`; `auto` следует языку приложения
+(`document.documentElement.lang`, затем `navigator.language`): `ru*` → `ru`, `zh*` → `zh`, иначе `en`.
+По умолчанию — `ru`.
+
+Язык меняется в **Plugins → Browser → Configure** — в форме настроек доступны
+Русский / English / 中文 / Авто — и применяется сразу, без перезапуска DSH.
+Значение хранится в `%LOCALAPPDATA%\dsh-browser\settings.json`.
+
+## Платформы
+
+Плагин не содержит платформенных вызовов: Chromium ищется по путям Playwright для Windows, Linux и macOS
+(или задаётся `DSH_BROWSER_EXE`), сторож процессов говорит с браузером по CDP, а не через `taskkill`
+или `kill`, пути собираются через `node:path`.
+
+```
+Windows   %LOCALAPPDATA%\ms-playwright\chromium-*/chrome-win64/chrome.exe
+Linux     ~/.cache/ms-playwright/chromium-*/chrome-linux/chrome
+macOS     ~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium
+```
+
+## Архитектура
+
+- **Host** (`index.js`) держит по менеджеру на агента, регистрирует инструменты и мост
+  `127.0.0.1:49221` для клиентской части.
+- **Менеджер** (`src/browser-manager.js`) запускает Chromium через `launchPersistentContext`
+  во временном профиле, который удаляется при закрытии браузера.
+- **Мост** (`src/bridge.js`) отдаёт вкладки, кадры и состояние прокси клиенту.
+- **Клиент** (`client.js`) рисует карточку в доке, раздел в сайдбаре и вид строки инструмента
+  с миниатюрой кадра.
+- **Прокси** (`src/routing-proxy.js`) маршрутизирует соединения по правилам из моста.
+
+## Ограничения
+
+- **`lighthouse`** требует установленного пакета; при его отсутствии команда вернёт
+  понятную ошибку, остальной плагин продолжит работать.
+
+## Требования
+
+- Chromium из Playwright (`ms-playwright`), путь можно задать через `DSH_BROWSER_EXE`.
+- `lighthouse` — необязательная зависимость: команда `lighthouse` вернёт понятную ошибку,
+  если пакет не установлен. Остальной плагин работает без него.
+
+## Завершение процессов
+
+Браузер не переживает хост. Помимо штатного закрытия по `dispose`, рядом с каждым браузером
+запускается отдельный сторож (`src/watchdog.mjs`): если процесс DSH исчез, он закрывает Chromium
+через его собственный DevTools-эндпоинт. Платформа не важна — это Node и CDP, без `taskkill`.

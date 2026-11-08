@@ -47,6 +47,7 @@ export const inject = ['tools'];
  * operator does not have to edit cordis.patch.yml by hand.
  */
 export const Config = z.object({
+  language: z.string().default('ru').description('Interface language: ru, en, zh or auto'),
   headless: z.boolean().default(true).description('Run Chromium without a window'),
   bridgePort: z.natural().default(49221).description('Loopback port of the panel bridge'),
   idleTimeoutMs: z.natural().default(900000).description('Close an idle browser after this many milliseconds'),

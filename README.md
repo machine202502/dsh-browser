@@ -5,35 +5,40 @@ a **Browser** section in the sidebar, a per-site proxy and DevTools-grade toolin
 16 tools, 33 `browser_run` commands (including `list`/`help` and the network presets), a settings
 form, and a regression suite.
 
-Изолированный браузер для каждой сессии DSH: настоящий Chromium (Playwright), живые миниатюры в доке,
-раздел **Browser** в сайдбаре, прокси на уровне сайта и полный доступ к DevTools.
+Real Chromium (Playwright) for every DSH session: live thumbnails in the dock, a **Browser**
+section in the sidebar, a per-site proxy and full DevTools access.
 
+## Screenshots
 
-## Установка
+![Browser section](docs/img/page.jpg)
 
-Одной командой — она прописывает зависимость из GitHub и запускает пакетный менеджер:
+![Plugin settings](docs/img/settings.jpg)
+
+## Installation
+
+One command — it adds the dependency from GitHub and runs the package manager:
 
 ```bash
 npx --yes github:machine202502/dsh-browser
 ```
 
-Дальше перезапустить DSH: в сайдбаре появится раздел **Browser**, в доке — карточка браузера.
+Then restart DSH: the **Browser** section appears in the sidebar and the browser card in the dock.
 
-Полезные варианты:
+Useful variants:
 
 ```bash
-node install.mjs --profile desktop --dry-run   # показать, что будет изменено
-node install.mjs --home /path/to/.dsh          # другой каталог DSH
-node install.mjs --uninstall                   # убрать плагин
+node install.mjs --profile desktop --dry-run   # show what will change
+node install.mjs --home /path/to/.dsh          # a different DSH directory
+node install.mjs --uninstall                   # remove the plugin
 ```
 
-Chromium ставится отдельно, `playwright-core` его не тянет:
+Chromium is installed separately; `playwright-core` does not pull it in:
 
 ```bash
 npx playwright install chromium
 ```
 
-Ручная установка (если pnpm недоступен) — в `~/.dsh/profiles/desktop/package.json`:
+Manual installation (if pnpm is unavailable) — in `~/.dsh/profiles/desktop/package.json`:
 
 ```json
 {
@@ -42,86 +47,87 @@ npx playwright install chromium
 }
 ```
 
-Проверка: `npm test` в каталоге плагина (нужна страница `node tests/qa-page.mjs`).
+Check: `npm test` in the plugin directory (requires the `node tests/qa-page.mjs` page).
 
-## Что даёт
+## What it gives
 
-- **Свой браузер на агента.** Отдельный процесс, отдельный временный профиль, свои вкладки.
-  Подагент получает собственный браузер и не видит чужие.
-- **Контексты.** `ctx1`, `ctx2`, … — изолированные куки и storage внутри одного браузера,
-  чтобы тестировать двух клиентов на одном сервере.
-- **Живые кадры.** Карточка в доке показывает миниатюры вкладок и виртуальный указатель;
-  после действий (`open`, `navigate`, `click`, `resize`, `drag`) в ленту чата попадает кадр.
-- **Раздел Browser в сайдбаре.** Список открытых браузеров, сгруппированный по сессиям:
-  имя сессии, число вкладок, переход в сессию, закрытие отдельного браузера.
-- **Прокси по сайту.** Встроенный маршрутизирующий прокси на `127.0.0.1:49222`: он смотрит хост
-  каждого соединения и направляет в Hiddify только сайты из списка, остальное — напрямую.
-  Chromium 156 игнорирует PAC (и `--proxy-pac-url`, и `chrome.proxy` из расширения), поэтому
-  решение принимается вне браузера. Список сайтов и адрес прокси сохраняются между перезапусками
-  в каталоге данных: `%LOCALAPPDATA%\dsh-browser` (Windows), `~/.local/share/dsh-browser` (Linux),
+- **A browser per agent.** A separate process, a separate temporary profile, its own tabs.
+  A subagent gets its own browser and cannot see anyone else's.
+- **Contexts.** `ctx1`, `ctx2`, … — isolated cookies and storage inside one browser,
+  so two clients can be tested against one server.
+- **Live frames.** The dock card shows tab thumbnails and a virtual pointer;
+  after actions (`open`, `navigate`, `click`, `resize`, `drag`) a frame is posted to the chat.
+- **Browser section in the sidebar.** A list of open browsers grouped by session:
+  session name, number of tabs, jumping to the session, closing an individual browser.
+- **Per-site proxy.** A built-in routing proxy on `127.0.0.1:49222`: it looks at the host
+  of every connection and routes only the listed sites through Hiddify, everything else goes direct.
+  Chromium 156 ignores PAC (both `--proxy-pac-url` and `chrome.proxy` from an extension), so the
+  decision is made outside the browser. The site list and the proxy address persist across restarts
+  in the data directory: `%LOCALAPPDATA%\dsh-browser` (Windows), `~/.local/share/dsh-browser` (Linux),
   `~/Library/Application Support/dsh-browser` (macOS).
-- **Отладка.** Сеть, консоль, куки, storage, IndexedDB, покрытие, снимок доступности, Lighthouse.
+- **Debugging.** Network, console, cookies, storage, IndexedDB, coverage, accessibility snapshot, Lighthouse.
 
-## Инструменты
+## Tools
 
-| Инструмент | Назначение |
+| Tool | Purpose |
 |---|---|
-| `browser_open` | открыть вкладку (можно в конкретном `ctx`) |
-| `browser_navigate` | перейти по адресу |
-| `browser_click` | клик по CSS-селектору (не блокируется диалогом) |
-| `browser_fill` | заполнить поле |
-| `browser_hover` / `browser_drag` | указатель и перетаскивание (в пределах вьюпорта) |
-| `browser_resize` | размер вьюпорта |
-| `browser_text` | текст страницы |
-| `browser_tabs` | список вкладок |
-| `browser_close` | закрыть вкладку (последняя гасит браузер) |
-| `browser_cdp` | сырой вызов Chrome DevTools Protocol |
-| `browser_run` | диспетчер команд (см. ниже) |
-| `browser_proxy_enable` / `browser_proxy_disable` / `browser_proxy_status` / `browser_proxy_list` | прокси |
+| `browser_open` | open a tab (optionally in a specific `ctx`) |
+| `browser_navigate` | navigate to a URL |
+| `browser_click` | click a CSS selector (not blocked by a dialog) |
+| `browser_fill` | fill a field |
+| `browser_hover` / `browser_drag` | pointer and drag (within the viewport) |
+| `browser_resize` | viewport size |
+| `browser_text` | page text |
+| `browser_tabs` | tab list |
+| `browser_close` | close a tab (the last one shuts the browser down) |
+| `browser_cdp` | raw Chrome DevTools Protocol call |
+| `browser_run` | command dispatcher (see below) |
+| `browser_proxy_enable` / `browser_proxy_disable` / `browser_proxy_status` / `browser_proxy_list` | proxy |
 
-Все инструменты принимают `timeout` (мс). По умолчанию 10–45 с в зависимости от операции.
+All tools accept `timeout` (ms). The default is 10–45 s depending on the operation.
 
-## Команды `browser_run`
+## `browser_run` commands
 
-`browser_run({ command: "list" })` — каталог; `{ command: "help", args: { name: "network" } }` — детали.
+`browser_run({ command: "list" })` — the catalogue; `{ command: "help", args: { name: "network" } }` — details.
 
-| Команда | Что делает |
+| Command | What it does |
 |---|---|
-| `console` | `console.*` и ошибки страницы, включая асинхронные |
-| `network` | запросы с кодами, типами и ошибками |
+| `console` | `console.*` and page errors, including asynchronous ones |
+| `network` | requests with codes, types and errors |
 | `cookies` | get / set / clear |
 | `storage` | `localStorage` / `sessionStorage` |
-| `idb` | IndexedDB: базы, хранилища, строки |
-| `eval` | выполнить JS, вернуть значение |
-| `dom` | html / text / attrs / styles / count элемента |
-| `snapshot` | дерево доступности (роль и имя) |
+| `idb` | IndexedDB: databases, stores, rows |
+| `eval` | run JS, return the value |
+| `dom` | html / text / attrs / styles / count of an element |
+| `snapshot` | accessibility tree (role and name) |
 | `keyboard` | `press`, `type`, `down`, `up` |
-| `dialog` | `accept` / `dismiss` / текст для `prompt` |
-| `emulate` | сеть, цветовая схема, CPU, часовой пояс, геолокация |
-| `metrics` | метрики производительности страницы |
-| `perf` | запись главного потока на N секунд: где ушло время |
-| `slow3g` / `fast3g` / `offline` / `off` | пресеты сети одним словом |
-| `trace` | запись Playwright-трейса |
-| `coverage` | покрытие JS между start и stop |
-| `downloads` | файлы, скачанные браузером |
-| `lighthouse` | аудит: оценки, метрики, проваленные проверки |
-| `report` | разбор сохранённого отчёта: список или один аудит |
-| `css` | сработавшие правила для элемента: селекторы, свойства, медиазапросы, шрифты |
-| `assets` | ресурсы страницы по типам, `download: true` — сохранить на диск |
-| `html` | полный HTML документа в файл |
-| `screenshot` | снимок страницы или элемента в файл (открывается `read_image`) |
-| `diff` | пиксельное сравнение двух скриншотов |
-| `ws` | WebSocket-соединения и кадры в обе стороны |
-| `wait` | ждать селектор или текст |
-| `ctx` | вкладки по контекстам |
-| `cdp` | произвольный метод протокола |
+| `dialog` | `accept` / `dismiss` / text for `prompt` |
+| `emulate` | network, color scheme, CPU, time zone, geolocation |
+| `metrics` | page performance metrics |
+| `perf` | record the main thread for N seconds: where the time went |
+| `slow3g` / `fast3g` / `offline` / `off` | network presets in one word |
+| `trace` | record a Playwright trace |
+| `coverage` | JS coverage between start and stop |
+| `downloads` | files downloaded by the browser |
+| `lighthouse` | audit: scores, metrics, failed checks |
+| `report` | parse a saved report: list or a single audit |
+| `css` | matched rules for an element: selectors, properties, media queries, fonts |
+| `assets` | page resources by type, `download: true` — save to disk |
+| `html` | the full document HTML into a file |
+| `screenshot` | page or element snapshot into a file (opened with `read_image`) |
+| `diff` | pixel comparison of two screenshots |
+| `ws` | WebSocket connections and frames in both directions |
+| `wait` | wait for a selector or text |
+| `ctx` | tabs by context |
+| `cdp` | an arbitrary protocol method |
 
-## Конфигурация
+## Configuration
 
 ```yaml
 - id: browser
   name: 'dsh-browser'
   config:
+    language: ru
     headless: true
     bridgePort: 49221
     idleTimeoutMs: 900000
@@ -135,11 +141,23 @@ npx playwright install chromium
       minIntervalMs: 1500
 ```
 
-## Платформы
+## Languages
 
-Плагин не содержит платформенных вызовов: Chromium ищется по путям Playwright для Windows, Linux и macOS
-(или задаётся `DSH_BROWSER_EXE`), сторож процессов говорит с браузером по CDP, а не через `taskkill`
-или `kill`, пути собираются через `node:path`.
+Interface languages: **Russian**, **English**, **Chinese**.
+
+The `language` setting is used when it is `ru` / `en` / `zh`; `auto` follows the application
+language (`document.documentElement.lang`, then `navigator.language`): `ru*` → `ru`,
+`zh*` → `zh`, otherwise `en`. The default is `ru`.
+
+The language is changed in **Plugins → Browser → Configure** — the settings form offers
+Русский / English / 中文 / Авто — and applies immediately, without restarting DSH.
+The value is stored in `%LOCALAPPDATA%\dsh-browser\settings.json`.
+
+## Platforms
+
+The plugin makes no platform-specific calls: Chromium is located through the Playwright paths for
+Windows, Linux and macOS (or set via `DSH_BROWSER_EXE`), the process watchdog talks to the browser
+over CDP rather than through `taskkill` or `kill`, and paths are built with `node:path`.
 
 ```
 Windows   %LOCALAPPDATA%\ms-playwright\chromium-*/chrome-win64/chrome.exe
@@ -147,30 +165,30 @@ Linux     ~/.cache/ms-playwright/chromium-*/chrome-linux/chrome
 macOS     ~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium
 ```
 
-## Архитектура
+## Architecture
 
-- **Host** (`index.js`) держит по менеджеру на агента, регистрирует инструменты и мост
-  `127.0.0.1:49221` для клиентской части.
-- **Менеджер** (`src/browser-manager.js`) запускает Chromium через `launchPersistentContext`
-  во временном профиле, который удаляется при закрытии браузера.
-- **Мост** (`src/bridge.js`) отдаёт вкладки, кадры и состояние прокси клиенту.
-- **Клиент** (`client.js`) рисует карточку в доке, раздел в сайдбаре и вид строки инструмента
-  с миниатюрой кадра.
-- **Прокси** (`src/routing-proxy.js`) маршрутизирует соединения по правилам из моста.
+- **Host** (`index.js`) keeps one manager per agent, registers the tools and the `127.0.0.1:49221`
+  bridge for the client part.
+- **Manager** (`src/browser-manager.js`) launches Chromium through `launchPersistentContext`
+  in a temporary profile that is deleted when the browser closes.
+- **Bridge** (`src/bridge.js`) serves tabs, frames and proxy state to the client.
+- **Client** (`client.js`) draws the dock card, the sidebar section and the tool-row view
+  with a frame thumbnail.
+- **Proxy** (`src/routing-proxy.js`) routes connections according to rules from the bridge.
 
-## Ограничения
+## Limitations
 
-- **`lighthouse`** требует установленного пакета; при его отсутствии команда вернёт
-  понятную ошибку, остальной плагин продолжит работать.
+- **`lighthouse`** requires the package to be installed; without it the command returns a clear
+  error and the rest of the plugin keeps working.
 
-## Требования
+## Requirements
 
-- Chromium из Playwright (`ms-playwright`), путь можно задать через `DSH_BROWSER_EXE`.
-- `lighthouse` — необязательная зависимость: команда `lighthouse` вернёт понятную ошибку,
-  если пакет не установлен. Остальной плагин работает без него.
+- Chromium from Playwright (`ms-playwright`); the path can be set via `DSH_BROWSER_EXE`.
+- `lighthouse` — an optional dependency: the `lighthouse` command returns a clear error
+  if the package is not installed. The rest of the plugin works without it.
 
-## Завершение процессов
+## Process termination
 
-Браузер не переживает хост. Помимо штатного закрытия по `dispose`, рядом с каждым браузером
-запускается отдельный сторож (`src/watchdog.mjs`): если процесс DSH исчез, он закрывает Chromium
-через его собственный DevTools-эндпоинт. Платформа не важна — это Node и CDP, без `taskkill`.
+The browser does not outlive the host. Besides the regular shutdown on `dispose`, a separate
+watchdog (`src/watchdog.mjs`) runs next to every browser: if the DSH process disappears, it closes
+Chromium through its own DevTools endpoint. The platform does not matter — it is Node and CDP, no `taskkill`.

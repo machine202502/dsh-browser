@@ -56,21 +56,302 @@ const ensureStyles = () => {
 };
 
 
-// Copy flows through the slot locale seat (`t`) when the composition provides
-// one; English is the fallback so the card never renders a raw key.
-const STR = {
-  tabs: (n) => `${n} tab${n === 1 ? '' : 's'}`,
-  closeTab: 'Close tab',
-  closeAll: 'Close all',
-  frame: 'frame…',
-  closed: 'tab closed',
-  subagent: (key) => `subagent tab ${key}`,
+/**
+ * Interface languages and the resolution order shared by the plugins in this
+ * folder: a saved ru/en/zh wins, a saved `auto` follows the application
+ * locale, and with no setting at all the default is ru.
+ */
+const UI_LANGUAGES = ['ru', 'en', 'zh'];
+const LANGUAGES = [...UI_LANGUAGES, 'auto'];
+const DEFAULT_LANGUAGE = 'ru';
+
+/** The application locale, consulted only when the saved setting is `auto`. */
+const detectLanguage = () => {
+  const probes = [
+    typeof document === 'undefined' ? '' : document.documentElement?.lang,
+    typeof navigator === 'undefined' ? '' : navigator.language,
+  ];
+  for (const probe of probes) {
+    const raw = String(probe ?? '').trim().toLowerCase();
+    if (raw.length === 0) continue;
+    if (raw.startsWith('ru')) return 'ru';
+    if (raw.startsWith('zh')) return 'zh';
+    return 'en';
+  }
+  return 'en';
 };
 
-const tr = (t, key, fallback) => {
-  if (typeof t !== 'function') return fallback;
-  const value = t(key);
-  return typeof value === 'string' && value.length > 0 && value !== key ? value : fallback;
+const resolveLanguage = (preference) => {
+  if (UI_LANGUAGES.includes(preference)) return preference;
+  if (preference === 'auto') return detectLanguage();
+  return DEFAULT_LANGUAGE;
+};
+
+/** Fill `{name}` holes in one localized string. */
+const fill = (text, values) => String(text).replace(/\{(\w+)\}/g, (match, key) => (values?.[key] === undefined ? match : String(values[key])));
+
+/** Russian plural form: 1 вкладка, 2 вкладки, 5 вкладок. */
+const pluralRu = (n, one, few, many) => {
+  const mod10 = Math.abs(n) % 10;
+  const mod100 = Math.abs(n) % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+};
+
+/**
+ * Every user-visible string in this bundle. English is the reference wording;
+ * ru and zh are translations of the same keys. Nothing outside this table is
+ * rendered as interface copy.
+ */
+const STRINGS = {
+  ru: {
+    // Dock card
+    browser: 'Браузер',
+    tabs: (n) => `${n} ${pluralRu(n, 'вкладка', 'вкладки', 'вкладок')}`,
+    closeTab: 'Закрыть вкладку',
+    closeAll: 'Закрыть все',
+    frame: 'кадр…',
+    closed: 'вкладка закрыта',
+    proxy: 'прокси',
+    untitled: '(без названия)',
+    subagentTab: 'вкладка подагента {key}',
+    subagent: 'подагент',
+    subagentBrowser: 'браузер подагента {key}',
+    panelError: 'Ошибка панели браузера: {detail}',
+    // Tool row
+    tool: 'Инструмент',
+    toolCall: 'Вызов инструмента',
+    toolTitles: {
+      browser_open: 'Браузер: открыть',
+      browser_navigate: 'Браузер: перейти',
+      browser_click: 'Браузер: клик',
+      browser_resize: 'Браузер: размер',
+      browser_drag: 'Браузер: перетаскивание',
+      browser_run: 'Браузер: команда',
+    },
+    clickSelector: 'Клик по {selector}',
+    resize: 'Размер {width}×{height}',
+    dragOnPage: 'Перетаскивание на странице',
+    toolGlyph: '>_',
+    times: '×',
+    in: 'ВХОД',
+    out: 'ВЫХОД',
+    screenshot: 'снимок экрана',
+    openLarger: 'открыть крупнее',
+    close: 'закрыть',
+    closeGlyph: '×',
+    // Sidebar
+    browsers: (n) => `${n} ${pluralRu(n, 'браузер', 'браузера', 'браузеров')}`,
+    tabsOpen: (n) => `Открыто вкладок: ${n}`,
+    openCount: (n) => `Открыто: ${n}`,
+    openSession: 'Открыть сессию',
+    noBrowsers: 'Нет открытых браузеров. Откройте браузер в сессии — он появится здесь.',
+    sessionFallback: 'Сессия {id}',
+    // Settings form
+    settingsSummary: 'Изолированный браузер Playwright на сессию',
+    saved: 'Сохранено — применится к новым браузерам',
+    save: 'Сохранить',
+    saving: 'Сохранение…',
+    loading: 'Загрузка…',
+    unavailable: 'Сервис настроек недоступен',
+    saveFailed: 'Не удалось сохранить',
+    headless: 'Без окна',
+    viewport: 'Вьюпорт',
+    screenshots: 'Скриншоты',
+    screenshotQuality: 'Качество скриншотов',
+    viewportHint: 'Размер окна по умолчанию для новых вкладок',
+    qualityHint: 'Качество JPEG, 10–100',
+    language: 'Язык',
+    languageHint: 'Язык интерфейса; «Авто» — по языку приложения',
+    languageRu: 'Русский',
+    languageEn: 'English',
+    languageZh: '中文',
+    languageAuto: 'Авто',
+  },
+  en: {
+    // Dock card
+    browser: 'Browser',
+    tabs: (n) => `${n} tab${n === 1 ? '' : 's'}`,
+    closeTab: 'Close tab',
+    closeAll: 'Close all',
+    frame: 'frame…',
+    closed: 'tab closed',
+    proxy: 'proxy',
+    untitled: '(untitled)',
+    subagentTab: 'subagent tab {key}',
+    subagent: 'subagent',
+    subagentBrowser: 'subagent browser {key}',
+    panelError: 'Browser panel error: {detail}',
+    // Tool row
+    tool: 'Tool',
+    toolCall: 'Tool call',
+    toolTitles: {
+      browser_open: 'Browser open',
+      browser_navigate: 'Browser navigate',
+      browser_click: 'Browser click',
+      browser_resize: 'Browser resize',
+      browser_drag: 'Browser drag',
+      browser_run: 'Browser run',
+    },
+    clickSelector: 'Click {selector}',
+    resize: 'Resize {width}×{height}',
+    dragOnPage: 'Drag on page',
+    toolGlyph: '>_',
+    times: '×',
+    in: 'IN',
+    out: 'OUT',
+    screenshot: 'screenshot',
+    openLarger: 'open larger',
+    close: 'close',
+    closeGlyph: '×',
+    // Sidebar
+    browsers: (n) => `${n} browser${n === 1 ? '' : 's'}`,
+    tabsOpen: (n) => `${n} tab${n === 1 ? '' : 's'} open`,
+    openCount: (n) => `${n} open`,
+    openSession: 'Open session',
+    noBrowsers: 'No open browsers. Open one from a session and it will appear here.',
+    sessionFallback: 'Session {id}',
+    // Settings form
+    settingsSummary: 'Isolated Playwright browser per session',
+    saved: 'Saved — applies to newly opened browsers',
+    save: 'Save',
+    saving: 'Saving…',
+    loading: 'Loading…',
+    unavailable: 'Settings service is unavailable',
+    saveFailed: 'save failed',
+    headless: 'Headless',
+    viewport: 'Viewport',
+    screenshots: 'Screenshots',
+    screenshotQuality: 'Screenshot quality',
+    viewportHint: 'Default window size for new tabs',
+    qualityHint: 'JPEG quality, 10–100',
+    language: 'Language',
+    languageHint: 'Interface language; Auto follows the application language',
+    languageRu: 'Русский',
+    languageEn: 'English',
+    languageZh: '中文',
+    languageAuto: 'Auto',
+  },
+  zh: {
+    // Dock card
+    browser: '浏览器',
+    tabs: (n) => `${n} 个标签页`,
+    closeTab: '关闭标签页',
+    closeAll: '全部关闭',
+    frame: '画面…',
+    closed: '标签页已关闭',
+    proxy: '代理',
+    untitled: '（无标题）',
+    subagentTab: '子代理标签页 {key}',
+    subagent: '子代理',
+    subagentBrowser: '子代理浏览器 {key}',
+    panelError: '浏览器面板错误：{detail}',
+    // Tool row
+    tool: '工具',
+    toolCall: '工具调用',
+    toolTitles: {
+      browser_open: '浏览器：打开',
+      browser_navigate: '浏览器：导航',
+      browser_click: '浏览器：点击',
+      browser_resize: '浏览器：调整大小',
+      browser_drag: '浏览器：拖动',
+      browser_run: '浏览器：命令',
+    },
+    clickSelector: '点击 {selector}',
+    resize: '调整大小 {width}×{height}',
+    dragOnPage: '在页面上拖动',
+    toolGlyph: '>_',
+    times: '×',
+    in: '输入',
+    out: '输出',
+    screenshot: '截图',
+    openLarger: '放大查看',
+    close: '关闭',
+    closeGlyph: '×',
+    // Sidebar
+    browsers: (n) => `${n} 个浏览器`,
+    tabsOpen: (n) => `已打开 ${n} 个标签页`,
+    openCount: (n) => `已打开 ${n} 个`,
+    openSession: '打开会话',
+    noBrowsers: '没有打开的浏览器。在会话中打开一个，它就会出现在这里。',
+    sessionFallback: '会话 {id}',
+    // Settings form
+    settingsSummary: '每会话独立的 Playwright 浏览器',
+    saved: '已保存 — 对新打开的浏览器生效',
+    save: '保存',
+    saving: '保存中…',
+    loading: '加载中…',
+    unavailable: '设置服务不可用',
+    saveFailed: '保存失败',
+    headless: '无头模式',
+    viewport: '视口',
+    screenshots: '截图',
+    screenshotQuality: '截图质量',
+    viewportHint: '新标签页的默认窗口大小',
+    qualityHint: 'JPEG 质量，10–100',
+    language: '语言',
+    languageHint: '界面语言；「自动」跟随应用语言',
+    languageRu: 'Русский',
+    languageEn: 'English',
+    languageZh: '中文',
+    languageAuto: '自动',
+  },
+};
+
+/**
+ * One language for every mount of this bundle: the dock card, the sidebar
+ * page and the settings form live in separate slot roots, so a module-level
+ * store is what keeps them in step without a DSH restart.
+ */
+let currentLanguage = DEFAULT_LANGUAGE;
+let languagePreference; // undefined: not read yet, or no setting at all -> ru
+const languageListeners = new Set();
+
+const publishLanguage = () => {
+  const next = resolveLanguage(languagePreference);
+  if (next === currentLanguage) return;
+  currentLanguage = next;
+  for (const listener of [...languageListeners]) {
+    try { listener(currentLanguage); } catch { /* a listener never breaks the panel */ }
+  }
+};
+
+const setLanguagePreference = (preference) => {
+  languagePreference = preference;
+  publishLanguage();
+};
+
+/** Subscribe one slot component to the shared language. */
+const useLanguage = () => {
+  const [language, setLanguage] = React.useState(currentLanguage);
+  React.useEffect(() => {
+    languageListeners.add(setLanguage);
+    setLanguage(currentLanguage);
+    return () => { languageListeners.delete(setLanguage); };
+  }, []);
+  return language;
+};
+
+const useStrings = () => STRINGS[useLanguage()];
+
+/**
+ * Read the saved language once the bridge is up. Until it answers the default
+ * (ru) applies; a few retries cover the host starting after this bundle.
+ */
+const loadLanguagePreference = async (attempt = 0) => {
+  try {
+    const response = await fetch(`${base}/api/settings`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(String(response.status));
+    const body = await response.json();
+    setLanguagePreference(body?.values?.language);
+  } catch {
+    if (attempt < 3) {
+      setTimeout(() => { void loadLanguagePreference(attempt + 1); }, 1000 * (attempt + 1));
+      return;
+    }
+    setLanguagePreference(undefined);
+  }
 };
 
 const CSS = `
@@ -227,7 +508,7 @@ const CSS = `
       fill: '#fff', stroke: '#111', strokeWidth: 1.2, strokeLinejoin: 'round',
     }));
 
-    const robotBadge = (key) => h('span', { className: 'bp-owner', title: `вкладка подагента · браузер ${key}` },
+    const robotBadge = (key, strings) => h('span', { className: 'bp-owner', title: fill(strings.subagentTab, { key }) },
       h('svg', { width: 11, height: 11, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
         strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
         h('rect', { x: 4, y: 8, width: 16, height: 12, rx: 3 }),
@@ -269,7 +550,7 @@ const CSS = `
     }
 
     /** Keeps one panel crash from taking the whole composer card with it. */
-    class PanelBoundary extends React.Component {
+    class PanelBoundaryState extends React.Component {
       constructor(props) {
         super(props);
         this.state = { error: null };
@@ -282,10 +563,17 @@ const CSS = `
       }
       render() {
         if (!this.state.error) return this.props.children;
+        const strings = STRINGS[this.props.language] ?? STRINGS[DEFAULT_LANGUAGE];
         return h('div', { className: 'bp-root' },
           h('div', { className: 'bp-body' },
-            h('span', { className: 'bp-empty' }, `Browser panel error: ${String(this.state.error?.message ?? this.state.error)}`)));
+            h('span', { className: 'bp-empty' }, fill(strings.panelError, { detail: String(this.state.error?.message ?? this.state.error) }))));
       }
+    }
+
+    /** Subscribes the error boundary to the language, even while it shows an error. */
+    function PanelBoundary({ children }) {
+      const language = useLanguage();
+      return h(PanelBoundaryState, { language }, children);
     }
 
 
@@ -301,8 +589,8 @@ const CSS = `
       );
     }
 
-    const robotMark = (key) => h('span', {
-      title: `subagent browser ${key}`,
+    const robotMark = (key, strings) => h('span', {
+      title: fill(strings.subagentBrowser, { key }),
       style: {
         display: 'inline-flex', alignItems: 'center', gap: 4, flex: 'none',
         padding: '1px 6px', borderRadius: 999, fontSize: 11, lineHeight: '15px',
@@ -318,7 +606,7 @@ const CSS = `
         h('circle', { cx: 9, cy: 14, r: 1, fill: 'currentColor', stroke: 'none' }),
         h('circle', { cx: 15, cy: 14, r: 1, fill: 'currentColor', stroke: 'none' }),
       ),
-      'subagent',
+      strings.subagent,
     );
 
     // Sidebar section mirroring the built-in page layout (TaskManagerPage):
@@ -366,6 +654,7 @@ const CSS = `
     };
 
     function BrowsersPanel(props) {
+      const strings = useStrings();
       const [list, setList] = React.useState([]);
       const [busy, setBusy] = React.useState(null);
 
@@ -416,7 +705,7 @@ const CSS = `
           const title = row?.displayTitle ?? row?.title;
           if (title) return title;
         } catch { /* fall through */ }
-        return item.title ?? `Session ${String(id ?? item.key).slice(-8)}`;
+        return item.title ?? fill(strings.sessionFallback, { id: String(id ?? item.key).slice(-8) });
       };
 
       const openSession = (sessionId) => {
@@ -448,27 +737,27 @@ const CSS = `
       const cards = groups.map((group) => h('div', { key: group.sessionKey, style: S.card },
         h('div', { style: S.cardHead },
           h('div', { style: S.cardTitle }, group.title),
-          h('span', { style: S.cardMeta }, `${group.items.length} browser${group.items.length === 1 ? '' : 's'}`),
+          h('span', { style: S.cardMeta }, strings.browsers(group.items.length)),
           h('button', {
             type: 'button', style: S.action,
             onClick: () => openSession(group.sessionKey),
-          }, 'Open session'),
+          }, strings.openSession),
         ),
         group.items.map((item) => {
           const isSubagent = Boolean(item.sessionId && item.rootSessionId && item.sessionId !== item.rootSessionId);
           return h('div', { key: item.key, style: S.row },
           h('div', { style: S.main },
             h('div', { style: S.nameLine },
-              h('span', { style: S.name }, 'Browser'),
-              isSubagent ? robotMark(item.key) : null,
+              h('span', { style: S.name }, strings.browser),
+              isSubagent ? robotMark(item.key, strings) : null,
             ),
-            h('div', { style: S.meta }, `${item.tabs} tab${item.tabs === 1 ? '' : 's'} open`),
+            h('div', { style: S.meta }, strings.tabsOpen(item.tabs)),
           ),
           h('button', {
             type: 'button', style: { ...S.action, opacity: busy === item.key ? 0.5 : 1 },
             disabled: busy === item.key,
             onClick: () => closeBrowser(item.key, group.sessionKey),
-          }, 'Close'),
+          }, strings.close),
           );
         }),
       ));
@@ -476,11 +765,11 @@ const CSS = `
       return h('div', { style: S.page },
         h('div', { style: S.content },
           h('div', { style: S.heading },
-            h('h1', { style: S.h1 }, 'Browser'),
-            live.length > 0 ? h('span', { style: S.hint }, `${live.length} open`) : null,
+            h('h1', { style: S.h1 }, strings.browser),
+            live.length > 0 ? h('span', { style: S.hint }, strings.openCount(live.length)) : null,
           ),
           live.length === 0
-            ? h('div', { style: S.empty }, 'No open browsers. Open one from a session and it will appear here.')
+            ? h('div', { style: S.empty }, strings.noBrowsers)
             : cards,
         ),
       );
@@ -489,6 +778,7 @@ const CSS = `
     // Tool-call view for browser actions: mirrors the default tool row (chevron,
     // name, args) and adds the captured frame underneath, indented.
     function ShotRow(props) {
+      const strings = useStrings();
       const { block } = props;
       const content = Array.isArray(block?.content) ? block.content : [];
       const joined = content.filter((b) => b && b.type === 'text').map((b) => b.text ?? '').join('\n');
@@ -499,24 +789,16 @@ const CSS = `
 
       const args = block?.args && typeof block.args === 'object' ? block.args : {};
       const name = block?.name ?? 'browser';
-      // Row titles follow the locale map the built-in rows use (tool.title.*).
-      const TITLES = {
-        browser_open: 'Browser open',
-        browser_navigate: 'Browser navigate',
-        browser_click: 'Browser click',
-        browser_resize: 'Browser resize',
-        browser_drag: 'Browser drag',
-        browser_run: 'Browser run',
-      };
-      const title = TITLES[name] ?? 'Tool call';
+      // Row titles and summaries are localized in STRINGS.toolTitles.
+      const title = strings.toolTitles[name] ?? strings.toolCall;
       const looksLikeCode = (value) => /[{}]|=>|function\s*\(/.test(value);
       const pick = (...candidates) => candidates.find((value) => typeof value === 'string' && value.length > 0 && !looksLikeCode(value)) ?? '';
       const fromMarker = marker ? marker[3].trim() : '';
       let summary = fromMarker;
       if (!summary) {
-        if (name === 'browser_click') summary = pick(args.description, args.selector ? `Click ${args.selector}` : '');
-        else if (name === 'browser_resize') summary = args.width && args.height ? `Resize ${args.width}×${args.height}` : '';
-        else if (name === 'browser_drag') summary = 'Drag on page';
+        if (name === 'browser_click') summary = pick(args.description, args.selector ? fill(strings.clickSelector, { selector: args.selector }) : '');
+        else if (name === 'browser_resize') summary = args.width && args.height ? fill(strings.resize, { width: args.width, height: args.height }) : '';
+        else if (name === 'browser_drag') summary = strings.dragOnPage;
         else summary = pick(args.description, args.url, args.tab);
       }
       const short = summary.length > 70 ? summary.slice(0, 70) + '…' : summary;
@@ -539,9 +821,9 @@ const CSS = `
             ? h(ChevronUp, { size: 14 })
             : ToolIcon
               ? h(ToolIcon, { size: 14 })
-              : h('span', { className: 'bp-tool-glyph' }, '>_'),
+              : h('span', { className: 'bp-tool-glyph' }, strings.toolGlyph),
         ),
-        h('span', { className: 'bp-tool-name hKdVjq_title' }, 'Tool'),
+        h('span', { className: 'bp-tool-name hKdVjq_title' }, strings.tool),
         h('span', { className: 'hKdVjq_sep' }),
         h('span', { className: 'bp-tool-args hKdVjq_summary' }, title),
       );
@@ -560,14 +842,14 @@ const CSS = `
             h('div', { className: 'bp-io-card' },
               inputText !== null
                 ? h('div', { className: 'bp-io-section' },
-                    h('span', { className: 'bp-io-label' }, 'IN'),
+                    h('span', { className: 'bp-io-label' }, strings.in),
                     h('span', { className: 'bp-io-text' }, inputText),
                   )
                 : null,
               inputText !== null && plain ? h('span', { className: 'bp-io-divider' }) : null,
               plain
                 ? h('div', { className: 'bp-io-section' },
-                    h('span', { className: 'bp-io-label' }, 'OUT'),
+                    h('span', { className: 'bp-io-label' }, strings.out),
                     h('span', { className: 'bp-io-text' }, plain),
                   )
                 : null,
@@ -583,12 +865,12 @@ const CSS = `
       const lightbox = open
         ? createPortal(
             h('div', { className: 'bp-lightbox', onClick: () => setOpen(false) },
-              h('img', { src: full, alt: 'screenshot' }),
+              h('img', { src: full, alt: strings.screenshot }),
               h('button', {
                 className: 'bp-lightbox-close',
                 onClick: (event) => { event.stopPropagation(); setOpen(false); },
-                title: 'close',
-              }, '×'),
+                title: strings.close,
+              }, strings.closeGlyph),
             ),
             document.body,
           )
@@ -629,8 +911,8 @@ const CSS = `
             h('img', {
               className: 'bp-shot',
               src: full,
-              alt: 'screenshot',
-              title: 'open larger',
+              alt: strings.screenshot,
+              title: strings.openLarger,
               onClick: () => setOpen(true),
             }),
             pointer,
@@ -697,14 +979,14 @@ const CSS = `
       return state;
     }
 
-    const plural = (n, t) => tr(t, 'browserPanel.tabs', `${n} tab${n === 1 ? '' : 's'}`);
     const ownerKey = (tab) => String(tab.id).split(':')[0];
     const hostOf = (tab) => {
       try { return new URL(tab.url).hostname; } catch { return ''; }
     };
     const isProxied = (tab, hosts, all) => Boolean(all) || Boolean(hosts && hosts.includes(hostOf(tab)));
 
-    function BrowserPanel({ sessionId, t, archivedIds }) {
+    function BrowserPanel({ sessionId, archivedIds }) {
+      const strings = useStrings();
       const [open, setOpen] = React.useState(false);
       const [shotTab, setShotTab] = React.useState(null);
       const [shotImg, setShotImg] = React.useState(null);
@@ -757,8 +1039,8 @@ const CSS = `
         h('div', { className: 'bp-body' },
           h('button', { type: 'button', className: 'bp-head', onClick: () => setOpen((v) => !v), 'aria-expanded': open },
             h('span', { className: 'bp-lead' }, leadIcon(), h('span', { className: 'bp-dot' })),
-            h('span', { className: 'bp-title' }, 'Browser'),
-            h('span', { className: 'bp-count' }, plural(tabs.length, t)),
+            h('span', { className: 'bp-title' }, strings.browser),
+            h('span', { className: 'bp-count' }, strings.tabs(tabs.length)),
             chevron(open),
           ),
           open
@@ -767,14 +1049,14 @@ const CSS = `
               },
               h('div', { className: 'bp-frame' },
                 t.thumb ? h('img', { className: 'bp-thumb', src: t.thumb, alt: '' }) : h('div', { className: 'bp-thumb' }),
-                t.owner === 'sub' ? robotBadge(ownerKey(t)) : null,
+                t.owner === 'sub' ? robotBadge(ownerKey(t), strings) : null,
                 h('span', { style: { ...cursorStyle(t), position: 'absolute', display: cursorStyle(t).display } }, cursorArrow(t.cursor?.down)),
               ),
               h('div', { className: 'bp-cap' },
                 h('div', { className: 'bp-cap-row' },
-                  h('span', { className: 'bp-name' }, t.title || '(untitled)'),
+                  h('span', { className: 'bp-name' }, t.title || strings.untitled),
                   h('button', {
-                    type: 'button', className: 'bp-close', title: tr(t, 'browserPanel.closeTab', STR.closeTab), 'aria-label': tr(t, 'browserPanel.closeTab', STR.closeTab),
+                    type: 'button', className: 'bp-close', title: strings.closeTab, 'aria-label': strings.closeTab,
                     onClick: (e) => closeTab(e, t.id),
                   }, h('svg', { width: 9, height: 9, viewBox: '0 0 10 10', fill: 'none' },
                       h('path', { d: 'M1.5 1.5l7 7M8.5 1.5l-7 7', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' })),
@@ -783,13 +1065,13 @@ const CSS = `
                 h('span', { className: 'bp-size' },
                   (t.ctx && t.ctx !== 'ctx1' ? `${t.ctx}  ·  ` : '') +
                   `${t.viewport.width}×${t.viewport.height}` +
-                  (isProxied(t, state.proxyHosts, state.proxyAll) ? '  ·  proxy' : '')),
+                  (isProxied(t, state.proxyHosts, state.proxyAll) ? `  ·  ${strings.proxy}` : '')),
               ),
             )))
             : null,
           open && tabs.length
             ? h('div', { className: 'bp-foot' },
-                h('button', { type: 'button', className: 'bp-ghost', onClick: closeAll }, tr(t, 'browserPanel.closeAll', STR.closeAll)))
+                h('button', { type: 'button', className: 'bp-ghost', onClick: closeAll }, strings.closeAll))
             : null,
         ),
         shotTab ? withPortal(h('div', { className: 'bp-overlay', onClick: () => { if (Date.now() - viewOpenedAt.current < 300) return; setShotTab(null); } },
@@ -799,7 +1081,7 @@ const CSS = `
               h('div', { className: 'bp-live-shot' },
                 shotImg
                   ? h('img', { src: shotImg, alt: '' })
-                  : h('div', { style: { padding: 24, color: 'var(--dsw-alias-label-tertiary)', fontSize: 13 } }, tr(t, 'browserPanel.frame', STR.frame)),
+                  : h('div', { style: { padding: 24, color: 'var(--dsw-alias-label-tertiary)', fontSize: 13 } }, strings.frame),
                 cursorOverlay(tab),
               ),
               h('div', { className: 'bp-live-bar' },
@@ -809,8 +1091,8 @@ const CSS = `
                     h('circle', { cx: 12, cy: 12, r: 9 }),
                     h('path', { d: 'M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18' }),
                   )),
-                h('span', { className: 'bp-live-url', title: tab ? tab.url : '' }, tab ? tab.url : tr(t, 'browserPanel.closed', STR.closed)),
-                tab && isProxied(tab, state.proxyHosts, state.proxyAll) ? h('span', { className: 'bp-live-proxy' }, 'proxy') : null,
+                h('span', { className: 'bp-live-url', title: tab ? tab.url : '' }, tab ? tab.url : strings.closed),
+                tab && isProxied(tab, state.proxyHosts, state.proxyAll) ? h('span', { className: 'bp-live-proxy' }, strings.proxy) : null,
                 h('span', { className: 'bp-live-size' }, tab ? `${tab.viewport.width}×${tab.viewport.height}` : ''),
               ),
             );
@@ -822,6 +1104,7 @@ const CSS = `
       inject: ['slots', 'uiWorkspace', 'sessions'],
       apply(ctx) {
         ensureStyles();
+        void loadLanguagePreference();
         // Report what the console already knows: without this a crashed render
         // just removes the card and leaves nothing in the host log.
         if (typeof window !== 'undefined' && !window.__dshBrowserDiag) {
@@ -861,6 +1144,7 @@ const CSS = `
 .bp-set-input { width: 148px; height: 32px; padding: 0 10px; border: 1px solid #dcdcdc; border-radius: 10px; background: #fff; color: inherit; font: inherit; outline: none; box-sizing: border-box; }
 .bp-set-input:focus { border-color: #9a9a9a; }
 .bp-set-input--short { width: 88px; }
+.bp-set-select { width: 148px; cursor: pointer; }
 .bp-set-group { display: flex; align-items: center; gap: 8px; }
 .bp-set-x { color: #8a8a8a; }
 .bp-set-switch { appearance: none; -webkit-appearance: none; position: relative; width: 36px; height: 20px; margin: 0; border-radius: 999px; background: #d9d9d9; cursor: pointer; transition: background 120ms ease; flex: none; }
@@ -882,21 +1166,33 @@ const CSS = `
      * Fields mirror the operator-level knobs only: proxy rules stay with the
      * agent's tools, deployment values stay in the profile patch.
      */
-    function BrowserSettingsForm({ t }) {
-      const tr = (key, fallback) => {
-        try { const value = t ? t(key) : undefined; return typeof value === 'string' && value !== key ? value : fallback; } catch { return fallback; }
-      };
+    function BrowserSettingsForm() {
       ensureSettingsStyles();
+      const uiLanguage = useLanguage();
       const [state, setState] = React.useState({ status: 'loading', values: {} });
       const [saving, setSaving] = React.useState(false);
       const [notice, setNotice] = React.useState({ text: '', error: false });
+
+      // The select previews the picked language immediately; the saved setting
+      // still decides what the rest of the UI uses until Save is pressed.
+      const language = state.status === 'ready' ? resolveLanguage(state.values?.language) : uiLanguage;
+      const strings = STRINGS[language];
 
       React.useEffect(() => {
         let alive = true;
         fetch(`${base}/api/settings`)
           .then((response) => response.json())
           .then((data) => {
-            if (alive) setState({ status: 'ready', values: data.values ?? {} });
+            if (alive) {
+              // Normalize once: a missing or unknown value is the ru default, and
+              // the select then always has a real option selected.
+              const savedLanguage = LANGUAGES.includes(data.values?.language)
+                ? data.values.language
+                : DEFAULT_LANGUAGE;
+              setState({ status: 'ready', values: { ...(data.values ?? {}), language: savedLanguage } });
+              // The form may mount before the initial language read finishes.
+              setLanguagePreference(savedLanguage);
+            }
           })
           .catch(() => {
             if (alive) setState({ status: 'error', values: {} });
@@ -928,8 +1224,10 @@ const CSS = `
             body: JSON.stringify(state.values),
           });
           const data = await response.json();
-          if (!response.ok) throw new Error(data.error ?? 'save failed');
-          setNotice({ text: tr('settings.saved', 'Saved — applies to newly opened browsers'), error: false });
+          if (!response.ok) throw new Error(data.error ?? strings.saveFailed);
+          // Language changes apply here and in every other mount, no restart.
+          setLanguagePreference(state.values?.language);
+          setNotice({ text: strings.saved, error: false });
         } catch (error) {
           setNotice({ text: String(error.message ?? error), error: true });
         } finally {
@@ -938,10 +1236,10 @@ const CSS = `
       };
 
       if (state.status === 'loading') {
-        return h('div', { className: 'bp-set', style: { color: '#8a8a8a' } }, tr('settings.loading', 'Loading…'));
+        return h('div', { className: 'bp-set', style: { color: '#8a8a8a' } }, strings.loading);
       }
       if (state.status === 'error') {
-        return h('div', { className: 'bp-set', style: { color: '#c0392b' } }, tr('settings.unavailable', 'Settings service is unavailable'));
+        return h('div', { className: 'bp-set', style: { color: '#c0392b' } }, strings.unavailable);
       }
 
       const values = state.values ?? {};
@@ -970,22 +1268,37 @@ const CSS = `
           onChange: (event) => setPath(path, Number(event.target.value)),
         });
 
+      const languageLabels = {
+        ru: strings.languageRu,
+        en: strings.languageEn,
+        zh: strings.languageZh,
+        auto: strings.languageAuto,
+      };
+
       return h('div', { className: 'bp-set' },
-        row('Headless', switchInput('headless', values.headless !== false)),
-        row('Viewport',
+        row(strings.language,
+          h('select', {
+            className: 'bp-set-input bp-set-select',
+            value: values.language ?? DEFAULT_LANGUAGE,
+            onChange: (event) => setPath('language', event.target.value),
+          }, LANGUAGES.map((value) => h('option', { key: value, value }, languageLabels[value]))),
+          strings.languageHint,
+        ),
+        row(strings.headless, switchInput('headless', values.headless !== false)),
+        row(strings.viewport,
           h('div', { className: 'bp-set-group' },
             numberInput('viewport.width', values.viewport?.width, 'bp-set-input--short'),
-            h('span', { className: 'bp-set-x' }, '×'),
+            h('span', { className: 'bp-set-x' }, strings.times),
             numberInput('viewport.height', values.viewport?.height, 'bp-set-input--short'),
           ),
-          tr('settings.viewportHint', 'Default window size for new tabs'),
+          strings.viewportHint,
         ),
-        row('Screenshots', switchInput('shots.enabled', values.shots?.enabled !== false)),
-        row('Screenshot quality', numberInput('shots.quality', values.shots?.quality),
-          tr('settings.qualityHint', 'JPEG quality, 10–100')),
+        row(strings.screenshots, switchInput('shots.enabled', values.shots?.enabled !== false)),
+        row(strings.screenshotQuality, numberInput('shots.quality', values.shots?.quality),
+          strings.qualityHint),
         h('div', { className: 'bp-set-actions' },
           h('button', { type: 'button', className: 'bp-set-save', onClick: save, disabled: saving },
-            saving ? tr('settings.saving', 'Saving…') : tr('settings.save', 'Save')),
+            saving ? strings.saving : strings.save),
           notice.text
             ? h('span', { className: `bp-set-status${notice.error ? ' bp-set-status--error' : ''}` }, notice.text)
             : null,
@@ -993,14 +1306,19 @@ const CSS = `
       );
     }
 
+    /** Plugin-row summary, localized through the same shared language store. */
+    function BrowserSummary() {
+      return useStrings().settingsSummary;
+    }
+
     try {
       ctx.slots.inject('plugins.row.config', () => ctx.slots.register({
         name: 'plugins.row.config',
         key: 'dsh-browser#browser',
         locale: 'browser',
-      }, ({ t, view }) => (view === 'summary'
-        ? (t ? t('settings.summary') : 'Isolated Playwright browser')
-        : h(BrowserSettingsForm, { t }))));
+      }, ({ view }) => (view === 'summary'
+        ? h(BrowserSummary)
+        : h(BrowserSettingsForm))));
     } catch (error) {
       console.warn('browser-panel: settings form registration failed', error);
     }
@@ -1027,7 +1345,7 @@ const CSS = `
             name: 'sidebar.panellist',
             id: 'browsers',
             order: 40,
-            label: () => 'Browser',
+            label: () => STRINGS[currentLanguage].browser,
           }, BrowserRailIcon));
           ctx.slots.inject('main', () => ctx.slots.register({
             name: 'main',
