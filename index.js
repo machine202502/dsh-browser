@@ -405,7 +405,8 @@ function activate(ctx, config) {
     settings: {
       view: () => ({ values: settingsStore.merge(config), defaults: config, overrides: settingsStore.read(), file: settingsStore.file }),
       save: (input) => ({ saved: settingsStore.write(input), file: settingsStore.file, restart: true }),
-    }, manager: view, proxy, frames: (id) => frames.get(id) ?? null, port: bridgePort });
+    }, manager: view, proxy, frames: (id) => frames.get(id) ?? null, port: bridgePort,
+    clientLog: (text) => log(`client: ${String(text)}`) });
 
   ctx.effect(() => {
     bridge

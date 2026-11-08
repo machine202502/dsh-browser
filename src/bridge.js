@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
  *   { rules(): { proxy: string, hosts: string[] }, report(payload): void,
  *     snapshot(): { hosts, reportedAt } }
  */
-export function createBridge({ manager, proxy = null, frames = null, token = null, port = 0, settings = null }) {
+export function createBridge({ manager, proxy = null, frames = null, token = null, port = 0, settings = null, clientLog = null }) {
   // Live sockets are tracked so shutdown never waits for a polling client.
   const sockets = new Set();
 
@@ -89,6 +89,14 @@ export function createBridge({ manager, proxy = null, frames = null, token = nul
       }
       if (action === 'proxy-state' && req.method === 'GET') {
         return json(200, proxy ? proxy.snapshot() : { hosts: [], reportedAt: null });
+      }
+      // Browser-client diagnostics: the panel reports a render crash or a console
+      // error here so a vanished card leaves a trace in the host log.
+      if (action === 'client-log' && req.method === 'POST') {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        try { clientLog?.(body.slice(0, 4000)); } catch { /* logging never fails a request */ }
+        return json(200, { ok: true });
       }
 
       return json(404, { error: 'not found' });

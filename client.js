@@ -24,6 +24,21 @@ let createPortal = null;
 
     const PORT = 49221; // must match cordis.patch.yml bridgePort
     const base = `http://127.0.0.1:${PORT}`;
+    /**
+     * Diagnostics for a panel that disappears: a render crash or a console error
+     * is posted to the host log instead of vanishing without a trace. The host
+     * appends it to the same file as its own activation log.
+     */
+    const reported = new Set();
+    const reportClient = (kind, detail) => {
+      try {
+        const text = `${kind}: ${String(detail ?? '').slice(0, 1200)}`;
+        if (reported.has(text)) return;
+        reported.add(text);
+        if (reported.size > 50) reported.clear();
+        fetch(`${base}/api/client-log`, { method: 'POST', body: text }).catch(() => {});
+      } catch { /* diagnostics never break the panel */ }
+    };
     const THUMB_W = 200;
     const THUMB_H = 125;
 
@@ -82,10 +97,14 @@ const CSS = `
       .bp-thumb { width: 100%; aspect-ratio: 16 / 10; object-fit: contain; display: block; background: var(--dsw-alias-bg-base);
         border-radius: var(--dsw-radius-sm); box-shadow: inset 0 0 0 .5px var(--dsw-alias-border-l1); }
       .bp-tile:hover .bp-thumb { box-shadow: inset 0 0 0 .5px var(--dsw-alias-border-l1), 0 2px 8px rgba(0,0,0,.10); }
-      .bp-close { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; border: 0;
-        background: #e5484d; color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0;
-        box-shadow: 0 1px 3px rgba(0,0,0,.28); }
-      .bp-close:hover { background: #cf3b40; }
+      /* The close control lives in the caption, never over the thumbnail: a red
+         button in the thumbnail's corner is a click trap — it sits where people
+         click to open the live view, and the tab really closes. */
+      .bp-cap-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+      .bp-close { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 0; padding: 0;
+        background: 0 0; color: var(--dsw-alias-label-tertiary); display: grid; place-items: center;
+        cursor: pointer; opacity: .55; transition: opacity 100ms ease, background 100ms ease, color 100ms ease; }
+      .bp-close:hover, .bp-close:focus-visible { opacity: 1; background: #e5484d; color: #fff; }
       .bp-owner { position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; border-radius: 9px;
         background: #7c5cff; color: #fff; display: grid; place-items: center;
         box-shadow: 0 1px 3px rgba(0,0,0,.28); }
@@ -137,7 +156,7 @@ const CSS = `
         transform: translate(-1px, -1px); filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
       .bp-cursor[data-down="true"] { filter: drop-shadow(0 0 3px rgba(229,72,77,.95)) drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
       .bp-cap { display: flex; flex-direction: column; gap: 1px; padding: 6px 2px 0; min-width: 0; }
-      .bp-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      .bp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         font-size: 13px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
       .bp-size { font-size: 12px; line-height: 16px; color: var(--dsw-alias-label-tertiary); }
 
@@ -249,6 +268,26 @@ const CSS = `
       try { return createPortal(node, document.body); } catch { return node; }
     }
 
+    /** Keeps one panel crash from taking the whole composer card with it. */
+    class PanelBoundary extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = { error: null };
+      }
+      static getDerivedStateFromError(error) {
+        return { error };
+      }
+      componentDidCatch(error, info) {
+        reportClient('panel-crash', `${error?.message ?? error}\n${error?.stack ?? ''}\n${info?.componentStack ?? ''}`);
+      }
+      render() {
+        if (!this.state.error) return this.props.children;
+        return h('div', { className: 'bp-root' },
+          h('div', { className: 'bp-body' },
+            h('span', { className: 'bp-empty' }, `Browser panel error: ${String(this.state.error?.message ?? this.state.error)}`)));
+      }
+    }
+
 
 
     // Sidebar rail icon: the same globe the fullscreen bar uses.
@@ -350,9 +389,14 @@ const CSS = `
                 if (!item.running) continue;
                 const own = item.sessionId ?? item.key;
                 const root = item.rootSessionId ?? own;
-                if (!archived.has(own) && !archived.has(root)) continue;
+                // Only the browser's *own* Session being archived retires it.
+                // The root is the Session that spawned a subagent: archiving a
+                // parent must not kill the browser of a live child Session, and
+                // a resumed/forked Session inherits that root id.
+                if (!archived.has(own)) continue;
                 if (closed.has(item.key)) continue;
                 closed.add(item.key);
+                reportClient('archived-purge', `key=${item.key} own=${own} root=${root} archived=${[...archived].slice(0, 6).join(',')}`);
                 fetch(`${base}/api/close-browser?key=${encodeURIComponent(item.key)}&purge=1`, { method: 'POST' }).catch(() => {});
               }
             }
@@ -598,6 +642,8 @@ const CSS = `
 
     function useTabs(expanded, sessionId, archivedIds) {
       const [state, setState] = React.useState({ running: false, tabs: [] });
+      /** Consecutive failed polls: one dropped request must not blank the card. */
+      const misses = React.useRef(0);
       React.useEffect(() => {
         let alive = true;
         const closed = new Set();
@@ -622,15 +668,26 @@ const CSS = `
                 for (const tab of body.tabs ?? []) {
                   const key = tab.key;
                   if (!key || closed.has(key)) continue;
-                  if (!archived.has(tab.sessionId) && !archived.has(tab.rootSessionId)) continue;
+                  // Own Session only: a live child of an archived parent keeps
+                  // its browser (see the sidebar reconcile above).
+                  if (!archived.has(tab.sessionId)) continue;
                   closed.add(key);
+                  reportClient('archived-purge', `key=${key} session=${tab.sessionId} root=${tab.rootSessionId} archived=${[...archived].slice(0, 6).join(',')}`);
                   fetch(`${base}/api/close-browser?key=${encodeURIComponent(key)}&purge=1`, { method: 'POST' }).catch(() => {});
                 }
               }
             } catch { /* archive view unavailable */ }
-            if (alive) setState(body);
+            if (alive) {
+              misses.current = 0;
+              setState(body);
+            }
           } catch {
-            if (alive) setState({ running: false, tabs: [] });
+            // A transient polling failure must not blank the panel: the last good
+            // snapshot stays on screen and only three misses in a row drop it.
+            if (alive) {
+              misses.current += 1;
+              if (misses.current >= 3) setState({ running: false, tabs: [] });
+            }
           }
         };
         tick();
@@ -651,6 +708,9 @@ const CSS = `
       const [open, setOpen] = React.useState(false);
       const [shotTab, setShotTab] = React.useState(null);
       const [shotImg, setShotImg] = React.useState(null);
+      /** When the live view opened: a backdrop click right after opening is the
+          open click itself, not a request to dismiss the view. */
+      const viewOpenedAt = React.useRef(0);
       const state = useTabs(open, sessionId, archivedIds);
       const tabs = state.tabs || [];
 
@@ -689,6 +749,7 @@ const CSS = `
       };
       const openShot = (id) => {
         setShotImg(null);
+        viewOpenedAt.current = Date.now();
         setShotTab(id);
       };
 
@@ -708,14 +769,17 @@ const CSS = `
                 t.thumb ? h('img', { className: 'bp-thumb', src: t.thumb, alt: '' }) : h('div', { className: 'bp-thumb' }),
                 t.owner === 'sub' ? robotBadge(ownerKey(t)) : null,
                 h('span', { style: { ...cursorStyle(t), position: 'absolute', display: cursorStyle(t).display } }, cursorArrow(t.cursor?.down)),
-                h('button', {
-                  type: 'button', className: 'bp-close', title: tr(t, 'browserPanel.closeTab', STR.closeTab), 'aria-label': tr(t, 'browserPanel.closeTab', STR.closeTab),
-                  onClick: (e) => closeTab(e, t.id),
-                }, h('svg', { width: 9, height: 9, viewBox: '0 0 10 10', fill: 'none' },
-                    h('path', { d: 'M1.5 1.5l7 7M8.5 1.5l-7 7', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' }))),
               ),
               h('div', { className: 'bp-cap' },
-                h('span', { className: 'bp-name' }, t.title || '(untitled)'),
+                h('div', { className: 'bp-cap-row' },
+                  h('span', { className: 'bp-name' }, t.title || '(untitled)'),
+                  h('button', {
+                    type: 'button', className: 'bp-close', title: tr(t, 'browserPanel.closeTab', STR.closeTab), 'aria-label': tr(t, 'browserPanel.closeTab', STR.closeTab),
+                    onClick: (e) => closeTab(e, t.id),
+                  }, h('svg', { width: 9, height: 9, viewBox: '0 0 10 10', fill: 'none' },
+                      h('path', { d: 'M1.5 1.5l7 7M8.5 1.5l-7 7', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' })),
+                  ),
+                ),
                 h('span', { className: 'bp-size' },
                   (t.ctx && t.ctx !== 'ctx1' ? `${t.ctx}  ·  ` : '') +
                   `${t.viewport.width}×${t.viewport.height}` +
@@ -728,7 +792,7 @@ const CSS = `
                 h('button', { type: 'button', className: 'bp-ghost', onClick: closeAll }, tr(t, 'browserPanel.closeAll', STR.closeAll)))
             : null,
         ),
-        shotTab ? withPortal(h('div', { className: 'bp-overlay', onClick: () => setShotTab(null) },
+        shotTab ? withPortal(h('div', { className: 'bp-overlay', onClick: () => { if (Date.now() - viewOpenedAt.current < 300) return; setShotTab(null); } },
           (() => {
             const tab = tabs.find((t) => t.id === shotTab);
             return h('div', { className: 'bp-live', onClick: (e) => e.stopPropagation() },
@@ -758,6 +822,23 @@ const CSS = `
       inject: ['slots', 'uiWorkspace', 'sessions'],
       apply(ctx) {
         ensureStyles();
+        // Report what the console already knows: without this a crashed render
+        // just removes the card and leaves nothing in the host log.
+        if (typeof window !== 'undefined' && !window.__dshBrowserDiag) {
+          window.__dshBrowserDiag = true;
+          window.addEventListener('error', (event) => reportClient('window.error', `${event.message}\n${event.error?.stack ?? ''}`));
+          window.addEventListener('unhandledrejection', (event) => reportClient('unhandledrejection', String(event.reason?.stack ?? event.reason)));
+          const originalError = console.error;
+          console.error = (...args) => {
+            try {
+              const text = args.map((value) => (value instanceof Error ? `${value.message}\n${value.stack ?? ''}` : typeof value === 'string' ? value : JSON.stringify(value))).join(' ');
+              // Only this bundle's own failures: the host console also carries
+              // other plugins' noise, which must not land in the browser log.
+              if (/BrowserPanel|browser-panel|dsh-browser|\bbp-/.test(text)) reportClient('console.error', text);
+            } catch { /* ignore */ }
+            originalError.apply(console, args);
+          };
+        }
         /**
      * Settings form for the Plugins page.
      *
@@ -938,7 +1019,7 @@ const CSS = `
               return new Set(snapshot?.archivedSessionIds ?? []);
             },
           }),
-        }, BrowserPanel));
+        }, (props) => h(PanelBoundary, null, h(BrowserPanel, props))));
 
         // Sidebar section: an icon in the rail plus the panel it selects.
         try {
