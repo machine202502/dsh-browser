@@ -1,6 +1,6 @@
 - insert:
     - id: browser
-      name: 'dsh-browser'
+      name: '@machine202502/dsh-browser'
       config:
         headless: true
         bridgePort: 49221

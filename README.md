@@ -19,7 +19,7 @@ section in the sidebar, a per-site proxy and full DevTools access.
 One command — it adds the dependency from GitHub and runs the package manager:
 
 ```bash
-npx --yes github:machine202502/dsh-browser
+dsh plugin --profile desktop add @machine202502/dsh-browser
 ```
 
 Then restart DSH: the **Browser** section appears in the sidebar and the browser card in the dock.
@@ -42,8 +42,8 @@ Manual installation (if pnpm is unavailable) — in `~/.dsh/profiles/desktop/pac
 
 ```json
 {
-  "dependencies": { "dsh-browser": "github:machine202502/dsh-browser" },
-  "dsh": { "profile": { "bundles": ["…", "dsh-browser"] } }
+  "dependencies": { "@machine202502/dsh-browser": "^0.1.1" },
+  "dsh": { "profile": { "bundles": ["…", "@machine202502/dsh-browser"] } }
 }
 ```
 

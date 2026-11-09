@@ -1,7 +1,6 @@
 {
-  "name": "dsh-browser",
-  "version": "0.1.0",
-  "private": false,
+  "name": "@machine202502/dsh-browser",
+  "version": "0.1.1",
   "type": "module",
   "description": "Browser: per-session isolated Playwright browser for DSH with a live tab panel, sidebar section, per-site proxy and DevTools-grade tooling.",
   "license": "MIT",
@@ -57,5 +56,9 @@
   "bin": {
     "dsh-browser": "./install.mjs"
   },
-  "icon": "./icon.svg"
+  "icon": "./icon.svg",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

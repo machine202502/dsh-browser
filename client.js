@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: 'dsh-browser',
+  id: '@machine202502/dsh-browser',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
